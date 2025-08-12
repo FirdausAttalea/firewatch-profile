@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import {
   Menu,
   X,
   Search,
+  User as UserIcon,
+  LogOut,
   Globe,
   ChevronDown,
   Shield,
@@ -24,18 +26,22 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
+import { supabase } from "@/lib/supabaseClient";
+import { type Session } from "@supabase/supabase-js";
 
 const FloatingHeader = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   const handleDropdown = (menu: string) => {
     setOpenDropdown((prevState) => (prevState === menu ? null : menu));
   };
 
-  // Optional: tambahkan event listener untuk menutup dropdown saat klik di luar
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -44,11 +50,26 @@ const FloatingHeader = () => {
       ) {
         setOpenDropdown(null);
       }
+      if (
+        isUserMenuOpen &&
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsUserMenuOpen(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [openDropdown]);
+  }, [openDropdown, isUserMenuOpen]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -62,6 +83,14 @@ const FloatingHeader = () => {
     const element = document.getElementById(id);
     element?.scrollIntoView({ behavior: "smooth" });
     setIsMobileMenuOpen(false);
+  };
+
+  const userFirstName = session?.user?.user_metadata?.full_name?.split(" ")[0] || "User";
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsUserMenuOpen(false);
+    navigate("/");
   };
 
   return (
@@ -301,12 +330,34 @@ const FloatingHeader = () => {
                   <Search className="h-4 w-4 mr-2" />
                   Search
                 </Button>
-                <Button
-                  onClick={() => scrollToSection("contact")}
-                  className="h-9 bg-primary hover:bg-primary/90"
-                >
-                  Join Us
-                </Button>
+                {session ? (
+                  <div className="relative" ref={userMenuRef}>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                      className="flex items-center space-x-2 h-9 px-3"
+                    >
+                      <UserIcon className="h-5 w-5 text-primary" />
+                      <span className="font-medium">{userFirstName}</span>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isUserMenuOpen ? "rotate-180" : ""}`} />
+                    </Button>
+                    {isUserMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-background rounded-md shadow-lg border py-1 z-10">
+                        <button onClick={handleLogout} className="w-full text-left flex items-center px-3 py-2 text-sm hover:bg-accent">
+                          <LogOut className="w-4 h-4 mr-2" />
+                          Logout
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => navigate("/auth")}
+                    className="h-9 bg-primary hover:bg-primary/90"
+                  >
+                    Join Us
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -351,14 +402,32 @@ const FloatingHeader = () => {
                 >
                   Contact
                 </button>
-                <div className="pt-3 border-t border-border/50">
-                  <Button
-                    onClick={() => scrollToSection("contact")}
-                    className="w-full bg-primary hover:bg-primary/90"
-                  >
-                    Join Us
-                  </Button>
-                </div>
+                {session ? (
+                  <div className="pt-3 border-t border-border/50">
+                    <div className="flex items-center justify-between p-3">
+                      <div className="flex items-center gap-2 font-medium">
+                        <UserIcon className="h-5 w-5 text-primary" />
+                        <span>{userFirstName}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          await handleLogout();
+                          setIsMobileMenuOpen(false);
+                        }}
+                      >
+                        <LogOut className="w-4 h-4 mr-2" /> Logout
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pt-3 border-t border-border/50">
+                    <Button onClick={() => { navigate("/auth"); setIsMobileMenuOpen(false); }} className="w-full bg-primary hover:bg-primary/90">
+                      Join Us
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
