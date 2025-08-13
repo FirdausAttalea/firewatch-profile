@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Menu,
   X,
@@ -130,7 +130,7 @@ const FloatingHeader = () => {
         >
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <div className="flex items-center space-x-3">
+            <Link to="/" className="flex items-center space-x-3 cursor-pointer">
               <img
                 src={logoBadak}
                 alt="HSE Badak LNG Logo"
@@ -140,7 +140,7 @@ const FloatingHeader = () => {
                 <h1 className="text-xl font-bold text-foreground">BADAK LNG</h1>
                 <p className="text-xs text-black/90">Fire Training Ground</p>
               </div>
-            </div>
+            </Link>
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center">
