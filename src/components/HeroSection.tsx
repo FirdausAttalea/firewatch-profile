@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import "../AnimatedButton.css";
 
 const HeroSection = () => {
   const scrollToSection = (id: string) => {
@@ -36,14 +36,19 @@ const HeroSection = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            <Button 
-              size="lg" 
-              className="bg-accent hover:bg-accent/90 text-accent-foreground text-lg px-8 py-4 font-semibold shadow-lg"
+            <button
+              className="animated-button backdrop-blur-sm"
               onClick={() => scrollToSection("about")}
             >
-              WHO WE ARE
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
+              <svg viewBox="0 0 24 24" className="arr-2" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+                <path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z" />
+              </svg>
+              <span className="text">WHO WE ARE</span>
+              <span className="circle" />
+              <svg viewBox="0 0 24 24" className="arr-1" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+                <path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z" />
+              </svg>
+            </button>
             <Button 
               size="lg" 
               variant="outline" 
