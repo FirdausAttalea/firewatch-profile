@@ -22,12 +22,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, Variants } from "framer-motion"
 import { Link } from "react-router-dom" // Pastikan import ini benar
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { trainingPrograms, TrainingProgram } from "@/data/trainingData"
+import { TrainingProgram } from "@/data/trainingData"
+import { supabase } from "@/lib/supabaseClient"
 import FloatingHeader from "@/components/FloatingHeader"
 import Footer from "@/components/Footer"
+import { AddTrainingDialog } from "@/components/AddTrainingDialog"
 
 const categories = [
   "All",
@@ -49,7 +51,60 @@ const certifications = [
   "IAAI Certified",
 ]
 
-export default function TrainingProgramsList() {
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+}
+
+const cardVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 20,
+    scale: 0.95,
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.5,
+      ease: "easeOut",
+    },
+  },
+  hover: {
+    y: -8,
+    scale: 1.02,
+    transition: {
+      duration: 0.3,
+      ease: "easeInOut",
+    },
+  },
+}
+
+const filterVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    height: 0,
+    transition: {
+      duration: 0.3,
+    },
+  },
+  visible: {
+    opacity: 1,
+    height: "auto",
+    transition: {
+      duration: 0.3,
+    },
+  },
+}
+
+export default function TrainingPage() {
+  const [allPrograms, setAllPrograms] = useState<TrainingProgram[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [selectedLevel, setSelectedLevel] = useState("All")
@@ -63,8 +118,18 @@ export default function TrainingProgramsList() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(6) // 6 items per page for 3x2 grid
 
+  const fetchPrograms = async () => {
+    const { data, error } = await supabase.from("training_programs").select("*")
+
+    if (error) {
+      console.error("Error fetching training programs:", error)
+    } else if (data) {
+      setAllPrograms(data as TrainingProgram[])
+    }
+  }
+
   useEffect(() => {
-    // Scroll to top on component mount
+    fetchPrograms()
     window.scrollTo(0, 0)
   }, [])
 
@@ -79,7 +144,7 @@ export default function TrainingProgramsList() {
   }
 
   const getComparePrograms = () => {
-    return trainingPrograms.filter((program) => comparePrograms.includes(program.id))
+    return allPrograms.filter((program) => comparePrograms.includes(program.id))
   }
 
   const handlePageChange = (page: number) => {
@@ -92,7 +157,7 @@ export default function TrainingProgramsList() {
   }
 
   const { paginatedPrograms, totalPages, totalItems } = useMemo(() => {
-    const filtered = trainingPrograms.filter((program) => {
+    const filtered = allPrograms.filter((program) => {
       const matchesSearch =
         program.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         program.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -141,63 +206,13 @@ export default function TrainingProgramsList() {
     selectedCertification,
     priceRange,
     showFeaturedOnly,
+    allPrograms,
     sortBy,
     comparePrograms,
     currentPage,
     itemsPerPage,
   ])
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  }
-
-  const cardVariants = {
-    hidden: {
-      opacity: 0,
-      y: 20,
-      scale: 0.95,
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-      },
-    },
-    hover: {
-      y: -8,
-      scale: 1.02,
-      transition: {
-        duration: 0.3,
-        ease: "easeInOut",
-      },
-    },
-  }
-
-  const filterVariants = {
-    hidden: {
-      opacity: 0,
-      height: 0,
-      transition: {
-        duration: 0.3,
-      },
-    },
-    visible: {
-      opacity: 1,
-      height: "auto",
-      transition: {
-        duration: 0.3,
-      },
-    },
-  }
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -226,18 +241,18 @@ export default function TrainingProgramsList() {
 
           {/* Search and Filter Controls */}
           <div className="space-y-4">
-            <div className="flex flex-col lg:flex-row gap-4 items-center">
-              <div className="relative flex-1 max-w-md">
+            <div className="flex flex-col lg:flex-row gap-4 items-center justify-between w-full">
+              <div className="relative w-full lg:max-w-md flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <Input
                   placeholder="Search programs, skills, or certifications..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-12 text-lg"
+                  className="pl-10 h-12 text-lg w-full"
                 />
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-start lg:justify-end">
                 <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="h-12 px-6">
                   <Filter className="w-5 h-5 mr-2" />
                   Filters
@@ -256,6 +271,7 @@ export default function TrainingProgramsList() {
                     <SelectItem value="duration">Duration</SelectItem>
                   </SelectContent>
                 </Select>
+                <AddTrainingDialog onSuccess={fetchPrograms} />
               </div>
             </div>
 
@@ -334,7 +350,7 @@ export default function TrainingProgramsList() {
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Checkbox id="featured" checked={showFeaturedOnly} onCheckedChange={setShowFeaturedOnly} />
+                    <Checkbox id="featured" checked={showFeaturedOnly} onCheckedChange={(checked) => setShowFeaturedOnly(checked === true)} />
                     <label htmlFor="featured" className="text-sm font-medium text-gray-700">
                       Show featured programs only
                     </label>

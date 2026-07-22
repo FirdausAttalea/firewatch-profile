@@ -13,6 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import Swal from "sweetalert2"
 import { supabase } from "@/lib/supabaseClient"
+import PhoneInput from 'react-phone-input-2'
+import 'react-phone-input-2/lib/style.css'
 
 interface FormData {
   email: string
@@ -353,6 +355,23 @@ export default function AuthPage() {
       }
       if (field === "phone") {
         setPhoneValidation({ isChecking: false, isValid: null, message: "" })
+      }
+    }
+
+    // Real-time password confirmation validation
+    if (!isLogin) {
+      if (field === "confirmPassword" && value.length > 0) {
+        if (value !== formData.password) {
+          setErrors((prev) => ({ ...prev, confirmPassword: "Passwords do not match" }))
+        } else {
+          setErrors((prev) => ({ ...prev, confirmPassword: undefined }))
+        }
+      } else if (field === "password" && formData.confirmPassword) {
+        if (value !== formData.confirmPassword) {
+          setErrors((prev) => ({ ...prev, confirmPassword: "Passwords do not match" }))
+        } else {
+          setErrors((prev) => ({ ...prev, confirmPassword: undefined }))
+        }
       }
     }
   }
@@ -712,29 +731,43 @@ export default function AuthPage() {
                         Phone Number
                       </Label>
                       <div className="relative mt-1">
-                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={formData.phone || ""}
-                          onChange={(e) => handleInputChange("phone", e.target.value)}
-                          onBlur={() => setTouchedFields((prev) => ({ ...prev, phone: true }))}
-                          className={`pl-9 pr-9 h-10 text-sm ${
-                            errors.phone
+                        <PhoneInput
+                          country={'id'} // default country
+                          value={formData.phone}
+                          onChange={(phone) => handleInputChange("phone", phone)}
+                          inputClass={`w-full pl-12 pr-9 h-10 text-sm rounded-md border 
+                            ${errors.phone
                               ? "border-red-500"
                               : phoneValidation.isValid === true
-                                ? "border-green-500"
-                                : phoneValidation.isValid === false
-                                  ? "border-red-500"
-                                  : ""
-                          }`}
-                          placeholder="Enter your phone number"
+                              ? "border-green-500"
+                              : phoneValidation.isValid === false
+                              ? "border-red-500"
+                              : "border-input"
+                            }`}
+                          containerClass="w-full"
+                          buttonClass={`!border-0 !border-r !rounded-l-md 
+                            ${errors.phone
+                              ? "!border-red-500"
+                              : phoneValidation.isValid === true
+                              ? "!border-green-500"
+                              : phoneValidation.isValid === false
+                              ? "!border-red-500"
+                              : "!border-input"
+                            }`}
+                          enableSearch={true}
+                          searchClass="!text-sm"
+                          dropdownClass="!text-sm"
+                          inputProps={{
+                            name: 'phone',
+                            required: true,
+                            autoFocus: false
+                          }}
                         />
                         {/* Validation Status Icon */}
                         {formData.phone && (
                           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                             {phoneValidation.isChecking ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500" />
                             ) : phoneValidation.isValid === true ? (
                               <Check className="w-4 h-4 text-green-500" />
                             ) : phoneValidation.isValid === false ? (
@@ -743,7 +776,9 @@ export default function AuthPage() {
                           </div>
                         )}
                       </div>
-                      {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                      {errors.phone && (
+                        <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                      )}
                       {!errors.phone && phoneValidation.message && (
                         <motion.p
                           initial={{ opacity: 0, y: -10 }}
@@ -752,8 +787,8 @@ export default function AuthPage() {
                             phoneValidation.isValid === true
                               ? "text-green-600"
                               : phoneValidation.isValid === false
-                                ? "text-red-500"
-                                : "text-blue-600"
+                              ? "text-red-500"
+                              : "text-blue-600"
                           }`}
                         >
                           {phoneValidation.message}

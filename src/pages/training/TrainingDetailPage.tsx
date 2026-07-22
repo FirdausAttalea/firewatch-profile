@@ -12,158 +12,103 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import NotFound from "@/pages/NotFound";
-import { trainings, ModuleTopic, CertificateDetail } from "@/data/trainings";
+import { ModuleTopic, CertificateDetail } from "@/data/trainings";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function TrainingDetailPage() {
+  const { slug } = useParams();
+  const navigate = useNavigate();
+  const [training, setTraining] = useState<any>(null);
+  const [instructor, setInstructor] = useState<any>(null);
+  const [curriculumModules, setCurriculumModules] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
+    const fetchTraining = async () => {
+      if (!slug) return;
+      setIsLoading(true);
+      
+      // Fetch from training_programs
+      const { data, error } = await supabase
+        .from("training_programs")
+        .select("*")
+        .eq("slug", slug)
+        .single();
+        
+      if (data) {
+        // Try to fetch certification details if they exist in the trainings table
+        const { data: certData } = await supabase
+          .from("trainings")
+          .select("id")
+          .eq("slug", slug)
+          .single();
+          
+        let certs = [];
+        if (certData) {
+          const { data: details } = await supabase
+            .from("certification_details")
+            .select("*")
+            .eq("training_id", certData.id);
+          if (details) certs = details;
+        }
+        
+        // Fetch instructor if exists
+        if (data.instructor_id) {
+          const { data: instData } = await supabase
+            .from("instructors")
+            .select("*")
+            .eq("id", data.instructor_id)
+            .single();
+          if (instData) setInstructor(instData);
+        }
+
+        // Fetch curriculum modules and topics
+        const { data: modulesData } = await supabase
+          .from("curriculum_modules")
+          .select("*")
+          .eq("training_id", data.id)
+          .order("module_number", { ascending: true });
+
+        if (modulesData && modulesData.length > 0) {
+          const moduleIds = modulesData.map((m: any) => m.id);
+          const { data: topicsData } = await supabase
+            .from("curriculum_topics")
+            .select("*")
+            .in("module_id", moduleIds);
+
+          const fullModules = modulesData.map((mod: any) => ({
+            ...mod,
+            topics: topicsData ? topicsData.filter((t: any) => t.module_id === mod.id).sort((a: any, b: any) => a.week_label.localeCompare(b.week_label)) : [],
+          }));
+          setCurriculumModules(fullModules);
+        }
+
+        setTraining({
+          ...data,
+          certifications_details: certs,
+          what_you_will_learn: data.what_you_will_learn || [],
+          program_features: data.program_features || [],
+        });
+      }
+      setIsLoading(false);
+    };
+    fetchTraining();
+  }, [slug]);
 
   const [selectedModule, setSelectedModule] = useState<{ title: string; duration: string; description: string; topics: ModuleTopic[] } | null>(null)
   const [selectedCertificate, setSelectedCertificate] = useState<CertificateDetail | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const moduleDetails = {
-    1: {
-      title: "Foundations of Emergency Medicine",
-      duration: "4 weeks",
-      description: "Build a strong foundation in emergency medical principles and practices.",
-      topics: [
-        {
-          week: "Week 1",
-          title: "Human Anatomy & Physiology",
-          content: [
-            "Cardiovascular system overview",
-            "Respiratory system mechanics",
-            "Nervous system fundamentals",
-            "Musculoskeletal system basics",
-          ],
-        },
-        {
-          week: "Week 2",
-          title: "Medical Terminology",
-          content: [
-            "Root words and prefixes",
-            "Body systems terminology",
-            "Medical abbreviations",
-            "Documentation standards",
-          ],
-        },
-        {
-          week: "Week 3",
-          title: "Legal & Ethical Considerations",
-          content: [
-            "Scope of practice guidelines",
-            "Patient consent and confidentiality",
-            "HIPAA compliance",
-            "Professional liability",
-          ],
-        },
-        {
-          week: "Week 4",
-          title: "EMS System Overview",
-          content: [
-            "EMS history and development",
-            "System components and roles",
-            "Quality improvement processes",
-            "Communication protocols",
-          ],
-        },
-      ],
-    },
-    2: {
-      title: "Patient Assessment & Care",
-      duration: "6 weeks",
-      description: "Master comprehensive patient assessment techniques and basic care protocols.",
-      topics: [
-        {
-          week: "Week 1-2",
-          title: "Primary Assessment",
-          content: [
-            "Scene safety evaluation",
-            "Initial patient contact",
-            "Airway assessment",
-            "Breathing evaluation",
-            "Circulation check",
-            "Disability assessment",
-          ],
-        },
-        {
-          week: "Week 3-4",
-          title: "Secondary Assessment",
-          content: [
-            "Head-to-toe examination",
-            "Focused assessments",
-            "History taking techniques",
-            "SAMPLE history method",
-          ],
-        },
-        {
-          week: "Week 5-6",
-          title: "Vital Signs & Documentation",
-          content: [
-            "Blood pressure measurement",
-            "Pulse assessment techniques",
-            "Respiratory rate monitoring",
-            "Temperature measurement",
-            "Patient care reporting",
-            "Electronic documentation",
-          ],
-        },
-      ],
-    },
-    3: {
-      title: "Advanced Life Support",
-      duration: "8 weeks",
-      description: "Advanced interventions and life-saving procedures for critical patients.",
-      topics: [
-        {
-          week: "Week 1-2",
-          title: "Advanced Airway Management",
-          content: [
-            "Endotracheal intubation",
-            "Supraglottic airway devices",
-            "Surgical airway procedures",
-            "Mechanical ventilation basics",
-          ],
-        },
-        {
-          week: "Week 3-4",
-          title: "Vascular Access & IV Therapy",
-          content: [
-            "Peripheral IV insertion",
-            "Central line access",
-            "Intraosseous access",
-            "Fluid resuscitation protocols",
-          ],
-        },
-        {
-          week: "Week 5-6",
-          title: "Pharmacology & Medication Administration",
-          content: [
-            "Emergency medications",
-            "Dosage calculations",
-            "Administration routes",
-            "Drug interactions and contraindications",
-          ],
-        },
-        {
-          week: "Week 7-8",
-          title: "Cardiac Monitoring & Defibrillation",
-          content: [
-            "12-lead ECG interpretation",
-            "Cardiac rhythm analysis",
-            "Defibrillation procedures",
-            "Cardioversion techniques",
-          ],
-        },
-      ],
-    },
-  }
+  // Removed static moduleDetails
 
-  const { slug } = useParams();
-  const navigate = useNavigate();
-  const training = trainings.find(t => t.slug === slug);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center pt-24">
+        <p className="text-xl text-gray-500">Loading training details...</p>
+      </div>
+    );
+  }
 
   if (!training) {
     return <NotFound />;
@@ -214,7 +159,7 @@ export default function TrainingDetailPage() {
                   ) : (
                     <>
                       <img
-                        src={`/news${(trainings.findIndex(t => t.slug === slug) % 4) + 1}.jpg`}
+                        src={training.image || "/news1.jpeg"}
                         className="w-full h-full object-cover"
                         alt={training.title}
                       />
@@ -279,43 +224,31 @@ export default function TrainingDetailPage() {
                       <div className="space-y-3">
                         <h4 className="font-semibold text-gray-900">What You'll Learn:</h4>
                         <ul className="space-y-2">
-                          <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-gray-600">Advanced life support techniques</span>
-                          </li>
-                          <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-gray-600">Emergency pharmacology</span>
-                          </li>
-                          <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-gray-600">Trauma assessment and management</span>
-                          </li>
-                          <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-gray-600">Cardiac emergency protocols</span>
-                          </li>
+                          {training.what_you_will_learn && training.what_you_will_learn.length > 0 ? (
+                            training.what_you_will_learn.map((item: string, idx: number) => (
+                              <li key={idx} className="flex items-start">
+                                <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm text-gray-600">{item}</span>
+                              </li>
+                            ))
+                          ) : (
+                            <li className="text-sm text-gray-500 italic">No specific learning objectives listed.</li>
+                          )}
                         </ul>
                       </div>
                       <div className="space-y-3">
                         <h4 className="font-semibold text-gray-900">Program Features:</h4>
                         <ul className="space-y-2">
-                          <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-gray-600">State-of-the-art simulation lab</span>
-                          </li>
-                          <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-gray-600">Clinical rotations in hospitals</span>
-                          </li>
-                          <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-gray-600">Field experience with EMS units</span>
-                          </li>
-                          <li className="flex items-start">
-                            <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-gray-600">24/7 online learning platform</span>
-                          </li>
+                          {training.program_features && training.program_features.length > 0 ? (
+                            training.program_features.map((item: string, idx: number) => (
+                              <li key={idx} className="flex items-start">
+                                <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm text-gray-600">{item}</span>
+                              </li>
+                            ))
+                          ) : (
+                            <li className="text-sm text-gray-500 italic">No program features listed.</li>
+                          )}
                         </ul>
                       </div>
                     </div>
@@ -330,168 +263,65 @@ export default function TrainingDetailPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold">Module 1: Foundations of Emergency Medicine</h4>
-                          <div className="flex items-center space-x-2">
-                            <Badge className="bg-blue-500">4 weeks</Badge>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" onClick={() => setSelectedModule(moduleDetails[1])}>
-                                  Detail Module
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                                <DialogHeader>
-                                  <DialogTitle>{moduleDetails[1].title}</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-6">
-                                  <div>
-                                    <p className="text-gray-600 mb-4">{moduleDetails[1].description}</p>
-                                    <div className="flex items-center space-x-4 text-sm text-gray-500 mb-6">
-                                      <Badge variant="secondary">{moduleDetails[1].duration}</Badge>
-                                    </div>
-                                  </div>
-                                  <div className="space-y-4">
-                                    {moduleDetails[1].topics.map((topic, index) => (
-                                      <div key={index} className="border rounded-lg p-4">
-                                        <div className="flex items-center justify-between mb-3">
-                                          <h4 className="font-semibold text-gray-900">
-                                            {topic.week}: {topic.title}
-                                          </h4>
+                      {curriculumModules.length > 0 ? (
+                        curriculumModules.map((mod, modIndex) => (
+                          <div key={mod.id} className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-semibold">Module {mod.module_number}: {mod.title}</h4>
+                              <div className="flex items-center space-x-2">
+                                <Badge className="bg-blue-500">{mod.duration}</Badge>
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm" onClick={() => setSelectedModule(mod)}>
+                                      Detail Module
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                                    <DialogHeader>
+                                      <DialogTitle>{mod.title}</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-6">
+                                      <div>
+                                        <p className="text-gray-600 mb-4">{mod.description}</p>
+                                        <div className="flex items-center space-x-4 text-sm text-gray-500 mb-6">
+                                          <Badge variant="secondary">{mod.duration}</Badge>
                                         </div>
-                                        <ul className="space-y-1">
-                                          {topic.content.map((item, itemIndex) => (
-                                            <li key={itemIndex} className="flex items-start">
-                                              <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                                              <span className="text-sm text-gray-600">{item}</span>
-                                            </li>
-                                          ))}
-                                        </ul>
                                       </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          </div>
-                        </div>
-                        <ul className="text-sm text-gray-600 space-y-1 ml-4">
-                          <li>• Anatomy and physiology review</li>
-                          <li>• Medical terminology</li>
-                          <li>• Legal and ethical considerations</li>
-                        </ul>
-                      </div>
-
-                      <Separator />
-
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold">Module 2: Patient Assessment & Care</h4>
-                          <div className="flex items-center space-x-2">
-                            <Badge className="bg-blue-500">6 weeks</Badge>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" onClick={() => setSelectedModule(moduleDetails[2])}>
-                                  Detail Module
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                                <DialogHeader>
-                                  <DialogTitle>{moduleDetails[2].title}</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-6">
-                                  <div>
-                                    <p className="text-gray-600 mb-4">{moduleDetails[2].description}</p>
-                                    <div className="flex items-center space-x-4 text-sm text-gray-500 mb-6">
-                                      <Badge variant="secondary">{moduleDetails[2].duration}</Badge>
+                                      <div className="space-y-4">
+                                        {mod.topics.map((topic: any, index: number) => (
+                                          <div key={index} className="border rounded-lg p-4">
+                                            <div className="flex items-center justify-between mb-3">
+                                              <h4 className="font-semibold text-gray-900">
+                                                {topic.week_label}: {topic.title}
+                                              </h4>
+                                            </div>
+                                            <ul className="space-y-1">
+                                              {topic.content.map((item: string, itemIndex: number) => (
+                                                <li key={itemIndex} className="flex items-start">
+                                                  <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                                                  <span className="text-sm text-gray-600">{item}</span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
-                                  </div>
-                                  <div className="space-y-4">
-                                    {moduleDetails[2].topics.map((topic, index) => (
-                                      <div key={index} className="border rounded-lg p-4">
-                                        <div className="flex items-center justify-between mb-3">
-                                          <h4 className="font-semibold text-gray-900">
-                                            {topic.week}: {topic.title}
-                                          </h4>
-                                        </div>
-                                        <ul className="space-y-1">
-                                          {topic.content.map((item, itemIndex) => (
-                                            <li key={itemIndex} className="flex items-start">
-                                              <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                                              <span className="text-sm text-gray-600">{item}</span>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
+                            </div>
+                            <ul className="text-sm text-gray-600 space-y-1 ml-4">
+                              {mod.topics.map((t: any, i: number) => (
+                                <li key={i}>• {t.title}</li>
+                              ))}
+                            </ul>
+                            {modIndex < curriculumModules.length - 1 && <Separator />}
                           </div>
-                        </div>
-                        <ul className="text-sm text-gray-600 space-y-1 ml-4">
-                          <li>• Primary and secondary assessment</li>
-                          <li>• Vital signs monitoring</li>
-                          <li>• Documentation and reporting</li>
-                        </ul>
-                      </div>
-
-                      <Separator />
-
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold">Module 3: Advanced Life Support</h4>
-                          <div className="flex items-center space-x-2">
-                            <Badge className="bg-blue-500">8 weeks</Badge>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" onClick={() => setSelectedModule(moduleDetails[3])}>
-                                  Detail Module
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                                <DialogHeader>
-                                  <DialogTitle>{moduleDetails[3].title}</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-6">
-                                  <div>
-                                    <p className="text-gray-600 mb-4">{moduleDetails[3].description}</p>
-                                    <div className="flex items-center space-x-4 text-sm text-gray-500 mb-6">
-                                      <Badge variant="secondary">{moduleDetails[3].duration}</Badge>
-                                    </div>
-                                  </div>
-                                  <div className="space-y-4">
-                                    {moduleDetails[3].topics.map((topic, index) => (
-                                      <div key={index} className="border rounded-lg p-4">
-                                        <div className="flex items-center justify-between mb-3">
-                                          <h4 className="font-semibold text-gray-900">
-                                            {topic.week}: {topic.title}
-                                          </h4>
-                                        </div>
-                                        <ul className="space-y-1">
-                                          {topic.content.map((item, itemIndex) => (
-                                            <li key={itemIndex} className="flex items-start">
-                                              <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                                              <span className="text-sm text-gray-600">{item}</span>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          </div>
-                        </div>
-                        <ul className="text-sm text-gray-600 space-y-1 ml-4">
-                          <li>• Airway management</li>
-                          <li>• IV therapy and medication administration</li>
-                          <li>• Cardiac monitoring and defibrillation</li>
-                        </ul>
-                      </div>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center py-4">Curriculum details not available for this program.</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -691,6 +521,43 @@ export default function TrainingDetailPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Instructor Profile */}
+            {instructor && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Lead Instructor</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-4">
+                    <Avatar className="w-16 h-16">
+                      <AvatarImage src={instructor.image} alt={instructor.name} />
+                      <AvatarFallback>{instructor.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h4 className="font-semibold text-lg">{instructor.name}</h4>
+                      <p className="text-sm text-gray-500">{instructor.role}</p>
+                      <div className="flex items-center mt-1">
+                        <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                        <span className="ml-1 text-sm font-medium">{instructor.rating}</span>
+                        <span className="ml-1 text-sm text-gray-500">({instructor.reviews} reviews)</span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600">{instructor.bio}</p>
+                  {instructor.certifications && instructor.certifications.length > 0 && (
+                    <div className="pt-2 border-t mt-2">
+                      <p className="text-sm font-medium mb-2">Certifications:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {instructor.certifications.map((cert: string, idx: number) => (
+                          <Badge key={idx} variant="outline" className="text-xs">{cert}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
