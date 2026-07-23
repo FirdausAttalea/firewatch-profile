@@ -495,12 +495,17 @@ export default function AuthPage() {
           // Enhanced error handling for network or other errors
           console.error('Login error details:', error)
           let userMessage = error.message || "Invalid email or password. Please try again."
-          if (error.message && error.message.toLowerCase().includes('failed to fetch')) {
+          let toastTitle = "Login Failed"
+          // Specific handling for incorrect password
+          if (error.message && error.message.toLowerCase().includes('invalid login credentials')) {
+            toastTitle = "Incorrect password"
+            userMessage = "Incorrect password"
+          } else if (error.message && error.message.toLowerCase().includes('failed to fetch')) {
             userMessage = "Unable to reach authentication server. Please check your internet connection or configuration."
           }
           await Swal.fire({
             icon: "error",
-            title: "Login Failed",
+            title: toastTitle,
             text: userMessage,
             confirmButtonColor: "#dc2626",
           })
