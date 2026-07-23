@@ -492,10 +492,16 @@ export default function AuthPage() {
             }
           }
         } else {
+          // Enhanced error handling for network or other errors
+          console.error('Login error details:', error)
+          let userMessage = error.message || "Invalid email or password. Please try again."
+          if (error.message && error.message.toLowerCase().includes('failed to fetch')) {
+            userMessage = "Unable to reach authentication server. Please check your internet connection or configuration."
+          }
           await Swal.fire({
             icon: "error",
             title: "Login Failed",
-            text: error.message || "Invalid email or password. Please try again.",
+            text: userMessage,
             confirmButtonColor: "#dc2626",
           })
         }
