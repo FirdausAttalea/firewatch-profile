@@ -1051,9 +1051,13 @@ export default function AuthPage() {
                   )}
 
                   {isLogin && (
-                    <a href="#" className="text-sm text-orange-600 hover:text-orange-700">
+                    <button
+                      type="button"
+                      onClick={() => navigate("/auth/forgot")}
+                      className="text-sm text-orange-600 hover:text-orange-700"
+                    >
                       Forgot password?
-                    </a>
+                    </button>
                   )}
                 </div>
 
