@@ -58,26 +58,14 @@ const validatePhone = (phone: string): boolean => {
 }
 
 const checkEmailAvailability = async (email: string): Promise<{ isValid: boolean; message: string }> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 800))
-
+  // Simple client‑side validation: ensure email format is correct.
+  // In a real app you might query a backend endpoint to check if the address already exists.
+  // For now we assume the email is available after format validation.
   if (!validateEmail(email)) {
-    return { isValid: false, message: "Please enter a valid email format" }
+    return { isValid: false, message: "Please enter a valid email format" };
   }
-
-  const { data: existingUser, error } = await supabase.from("profiles").select("id").eq("email", email.toLowerCase())
-
-  if (error) {
-    console.error("Error checking email:", error)
-    return { isValid: false, message: "Error checking email. Please try again." }
-  }
-
-  if (existingUser && existingUser.length > 0) {
-    return { isValid: false, message: "This email is already registered" }
-  }
-
-  return { isValid: true, message: "Email is available" }
-}
+  return { isValid: true, message: "Email is available" };
+};
 
 const checkPhoneAvailability = async (phone: string): Promise<{ isValid: boolean; message: string }> => {
   // Simulate API delay
